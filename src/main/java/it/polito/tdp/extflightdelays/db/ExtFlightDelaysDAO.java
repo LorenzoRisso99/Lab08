@@ -5,12 +5,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
 import it.polito.tdp.extflightdelays.model.Airline;
 import it.polito.tdp.extflightdelays.model.Airport;
 import it.polito.tdp.extflightdelays.model.Flight;
+import it.polito.tdp.extflightdelays.model.Rotta;
 
 public class ExtFlightDelaysDAO {
 
@@ -91,4 +93,45 @@ public class ExtFlightDelaysDAO {
 			throw new RuntimeException("Error Connection Database");
 		}
 	}
+	
+	public List<Rotta> getRotte(int distanzaMedia) {
+		String sql = "SELECT f.ORIGIN_AIRPORT_ID, f.DESTINATION_AIRPORT_ID, AVG(distance) AS avgs " + "FROM flights f "
+				+ "GROUP BY f.ORIGIN_AIRPORT_ID, f.DESTINATION_AIRPORT_ID " + "HAVING avgs > ?";
+		
+		List<Rotta> result = new LinkedList<>();
+
+		HashMap<Integer, Airport> aeroporti = new HashMap<Integer, Airport>();
+
+		for (Airport a : loadAllAirports()) {
+			aeroporti.put(a.getId(), a);
+		}
+
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, distanzaMedia);
+			ResultSet rs = st.executeQuery();
+
+			while (rs.next()) {
+				Airport aa = aeroporti.get(rs.getInt("ORIGIN_AIRPORT_ID"));
+				Airport ap = aeroporti.get(rs.getInt("DESTINATION_AIRPORT_ID"));
+				
+				if (aa == null || ap == null) {
+					throw new RuntimeException("Errore");
+				}
+				
+				Rotta rotta = new Rotta(aa, ap, rs.getDouble("avgs"));
+				result.add(rotta);
+			}
+
+			conn.close();
+			return result;
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+			System.out.println("Errore connessione al database");
+			throw new RuntimeException("Error Connection Database");
+		}
+	}
+
 }
